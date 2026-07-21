@@ -883,7 +883,6 @@ for(let w=1; w<=10; w++){
   btn.dataset.hasMenu = menus[w] ? "1" : "0";
   if(w === TODAY.week) btn.classList.add('current');
   btn.innerHTML = `
-    ${w===TODAY.week ? '<span class="today-flag">☀️</span>' : ''}
     <span class="leaf"></span>
     <span class="week-label">Wk ${w}</span>
     <span class="week-dates">${weekMeta[w].short}</span>
