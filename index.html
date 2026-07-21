@@ -356,7 +356,7 @@
   .meal-tag.snack{ background:var(--leaf-mid); }
   .meal-tag.lunch{ background:var(--bloom); }
   .meal-text{ font-size:13px; line-height:1.55; }
- // .meal-text .zh{ color:var(--ink-soft); font-size:12px; margin-top:1px; }
+ .meal-text .zh{ color:var(--ink-soft); font-size:12px; margin-top:1px; }
 
   .no-menu{
     font-size:13px;
@@ -964,19 +964,19 @@ function render(){
     document.getElementById('menuBody').innerHTML = `
       <div class="meal-row">
         <div class="meal-tag breakfast">Breakfast</div>
-        <div class="meal-text">${day.b.en}<div class="zh">${day.b.zh}</div></div>
+        <div class="meal-text">${day.b.en}</div>
       </div>
       <div class="meal-row">
         <div class="meal-tag snack">AM Snack</div>
-        <div class="meal-text">${day.ms.en}<div class="zh">${day.ms.zh}</div></div>
+        <div class="meal-text">${day.ms.en}</div>
       </div>
       <div class="meal-row">
         <div class="meal-tag lunch">Lunch</div>
-        <div class="meal-text">${day.l.en}<div class="zh">${day.l.zh}</div></div>
+        <div class="meal-text">${day.l.en}</div>
       </div>
       <div class="meal-row">
         <div class="meal-tag snack">PM Snack</div>
-        <div class="meal-text">${day.as.en}<div class="zh">${day.as.zh}</div></div>
+        <div class="meal-text">${day.as.en}</div></div>
       </div>
     `;
   } else {
