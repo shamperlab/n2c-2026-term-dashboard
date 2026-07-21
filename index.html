@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>N2 Term 3 · Growing Things</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleAuth()"></script>
+<script>
+  // ---------- ACCESS CONTROL ----------
+  // 1) Paste your OAuth Client ID from Google Cloud Console below.
+  // 2) List the parents' Google email addresses (lowercase) who should have access.
+  //    Leave the array empty [] to allow ANY signed-in Google account (no restriction).
+  const GOOGLE_CLIENT_ID = "YOUR_CLIENT_ID.apps.googleusercontent.com";
+  const ALLOWED_EMAILS = [
+    // "parent1@gmail.com",
+    // "parent2@gmail.com",
+  ];
+  const AUTH_STORAGE_KEY = "n2_term3_auth";
+
+  function decodeJwt(token){
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g,'+').replace(/_/g,'/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+    );
+    return JSON.parse(jsonPayload);
+  }
+
+  function handleCredentialResponse(response){
+    const payload = decodeJwt(response.credential);
+    const email = (payload.email || '').toLowerCase();
+    const isAllowed = payload.email_verified && (ALLOWED_EMAILS.length === 0 || ALLOWED_EMAILS.includes(email));
+
+    if(isAllowed){
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ email, name: payload.name || email }));
+      showDashboard(payload.name || email, email);
+    } else {
+      const err = document.getElementById('authError');
+      err.textContent = `"${email}" isn't on the approved parent list yet. Ask whoever manages this page to add you.`;
+      err.style.display = 'block';
+    }
+  }
+
+  function showDashboard(name, email){
+    document.getElementById('authGate').style.display = 'none';
+    const main = document.getElementById('mainContent');
+    main.style.display = 'block';
+    const status = document.getElementById('authStatus');
+    if(status){
+      status.innerHTML = `<span>👋 ${name}</span><button id="signOutBtn">Sign out</button>`;
+      document.getElementById('signOutBtn').addEventListener('click', signOut);
+    }
+  }
+
+  function signOut(){
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    location.reload();
+  }
+
+  function initGoogleAuth(){
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleCredentialResponse
+    });
+    google.accounts.id.renderButton(
+      document.getElementById('googleSignInBtn'),
+      { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill' }
+    );
+
+    // Already signed in this device/browser? Skip straight to the dashboard.
+    const saved = localStorage.getItem(AUTH_STORAGE_KEY);
+    if(saved){
+      try{
+        const { name, email } = JSON.parse(saved);
+        if(ALLOWED_EMAILS.length === 0 || ALLOWED_EMAILS.includes(email)){
+          showDashboard(name, email);
+        } else {
+          localStorage.removeItem(AUTH_STORAGE_KEY);
+        }
+      }catch(e){ localStorage.removeItem(AUTH_STORAGE_KEY); }
+    }
+  }
+</script>
+<style>
+  :root{
+    --paper:#F6F4EA;
+    --paper-raised:#FFFFFF;
+    --leaf-deep:#2F5233;
+    --leaf-mid:#5C8A5A;
+    --leaf-pale:#DCE9D4;
+    --soil:#8B5E3C;
+    --sun:#F2B705;
+    --bloom:#E4572E;
+    --ink:#22281F;
+    --ink-soft:#5B6558;
+    --line:#DCD6C4;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:'Fredoka',sans-serif;
+    font-weight:600;
+    letter-spacing:0.2px;
+  }
+  .wrap{
+    max-width:1000px;
+    margin:0 auto;
+    padding:28px 20px 60px;
+  }
+
+  /* HEADER */
+  header{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:26px;
+    flex-wrap:wrap;
+  }
+  .eyebrow{
+    font-size:12.5px;
+    text-transform:uppercase;
+    letter-spacing:1.6px;
+    color:var(--leaf-mid);
+    font-weight:700;
+    margin:0 0 4px;
+  }
+  header h1{
+    margin:0;
+    font-size:30px;
+    color:var(--leaf-deep);
+  }
+  header h1 span{ color:var(--bloom); }
+  .today-pill{
+    background:var(--leaf-deep);
+    color:#fff;
+    padding:9px 16px;
+    border-radius:999px;
+    font-size:13px;
+    font-weight:600;
+    white-space:nowrap;
+  }
+
+  /* GROWTH TRACK (week selector) */
+  .growth-track{
+    position:relative;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:22px 18px 14px;
+    margin-bottom:22px;
+    overflow-x:auto;
+  }
+  .growth-track-inner{
+    display:flex;
+    align-items:flex-end;
+    gap:6px;
+    min-width:640px;
+    position:relative;
+  }
+  .growth-track-inner::before{
+    content:"";
+    position:absolute;
+    left:14px; right:14px; bottom:34px;
+    height:3px;
+    background:var(--leaf-pale);
+    border-radius:3px;
+    z-index:0;
+  }
+  .week-stem{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    cursor:pointer;
+    background:none;
+    border:none;
+    font-family:inherit;
+    padding:0 2px;
+    position:relative;
+    z-index:1;
+  }
+  .leaf{
+    width:16px; height:16px;
+    border-radius:60% 60% 60% 5%;
+    background:var(--leaf-pale);
+    border:2px solid var(--leaf-mid);
+    margin-bottom:8px;
+    transition:transform .15s ease, background .15s ease;
+  }
+  .week-stem[data-has-menu="0"] .leaf{ opacity:.55; }
+  .week-stem:hover .leaf{ transform:scale(1.15) rotate(-8deg); }
+  .week-stem.active .leaf{
+    background:var(--leaf-deep);
+    border-color:var(--leaf-deep);
+    transform:scale(1.3) rotate(-8deg);
+  }
+  .week-stem.current .leaf{
+    background:var(--sun);
+    border-color:var(--bloom);
+  }
+  .week-label{
+    font-size:11.5px;
+    font-weight:600;
+    color:var(--ink-soft);
+  }
+  .week-stem.active .week-label{ color:var(--leaf-deep); }
+  .week-dates{
+    font-size:9.5px;
+    color:var(--ink-soft);
+    opacity:.75;
+    margin-top:1px;
+  }
+  .today-flag{
+    position:absolute;
+    top:-2px;
+    font-size:14px;
+  }
+
+  /* PANELS */
+  .grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:18px;
+  }
+  @media (max-width:760px){ .grid{ grid-template-columns:1fr; } }
+
+  .card{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:20px 22px;
+  }
+  .card h2{
+    font-size:15px;
+    margin:0 0 14px;
+    color:var(--leaf-deep);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .card h2 .tag{
+    font-size:10.5px;
+    background:var(--leaf-pale);
+    color:var(--leaf-deep);
+    padding:3px 9px;
+    border-radius:999px;
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    letter-spacing:.4px;
+  }
+
+  /* LETTER HERO */
+  .letter-hero{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    margin-bottom:14px;
+  }
+  .letter-badge{
+    font-family:'Fredoka',sans-serif;
+    font-size:34px;
+    font-weight:700;
+    color:#fff;
+    background:var(--leaf-deep);
+    width:64px; height:64px;
+    border-radius:16px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+  }
+  .letter-meta .theme{ font-weight:700; font-size:15px; color:var(--ink); }
+  .letter-meta .sub{ font-size:12.5px; color:var(--ink-soft); margin-top:2px;}
+  .field{ margin-bottom:10px; }
+  .field .k{
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:.6px;
+    color:var(--soil);
+    font-weight:700;
+    margin-bottom:3px;
+  }
+  .field .v{ font-size:13.5px; line-height:1.5; color:var(--ink); }
+
+  .song-list{ list-style:none; margin:0; padding:0; }
+  .song-list li{
+    font-size:13px;
+    padding:8px 0;
+    border-bottom:1px dashed var(--line);
+    line-height:1.5;
+  }
+  .song-list li:last-child{ border-bottom:none; }
+  .song-list b{ color:var(--leaf-deep); }
+
+  /* DAY TABS for menu */
+  .day-tabs{
+    display:flex;
+    gap:6px;
+    margin-bottom:16px;
+    flex-wrap:wrap;
+  }
+  .day-tab{
+    font-family:'Inter',sans-serif;
+    font-size:12.5px;
+    font-weight:600;
+    padding:8px 12px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:var(--paper);
+    color:var(--ink-soft);
+    cursor:pointer;
+  }
+  .day-tab.active{
+    background:var(--leaf-deep);
+    color:#fff;
+    border-color:var(--leaf-deep);
+  }
+  .day-tab.is-today:not(.active){
+    border-color:var(--bloom);
+    color:var(--bloom);
+  }
+
+  .meal-row{
+    display:flex;
+    gap:12px;
+    padding:11px 0;
+    border-bottom:1px solid var(--line);
+    align-items:flex-start;
+  }
+  .meal-row:last-child{ border-bottom:none; }
+  .meal-tag{
+    flex-shrink:0;
+    width:78px;
+    font-size:10.5px;
+    text-transform:uppercase;
+    font-weight:700;
+    letter-spacing:.4px;
+    color:#fff;
+    background:var(--soil);
+    padding:4px 8px;
+    border-radius:8px;
+    text-align:center;
+    height:fit-content;
+  }
+  .meal-tag.breakfast{ background:var(--sun); color:var(--ink); }
+  .meal-tag.snack{ background:var(--leaf-mid); }
+  .meal-tag.lunch{ background:var(--bloom); }
+  .meal-text{ font-size:13px; line-height:1.55; }
+  .meal-text .zh{ color:var(--ink-soft); font-size:12px; margin-top:1px; }
+
+  .no-menu{
+    font-size:13px;
+    color:var(--ink-soft);
+    background:var(--leaf-pale);
+    border-radius:10px;
+    padding:16px;
+    line-height:1.6;
+  }
+
+  /* TERM-WIDE ACCORDION */
+  .term-wide{
+    margin-top:22px;
+  }
+  .term-wide-title{
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:.6px;
+    color:var(--ink-soft);
+    font-weight:700;
+    margin:26px 0 10px;
+  }
+  details{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:12px;
+    margin-bottom:10px;
+    overflow:hidden;
+  }
+  summary{
+    cursor:pointer;
+    padding:14px 18px;
+    font-weight:600;
+    font-size:14px;
+    color:var(--leaf-deep);
+    list-style:none;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  summary::-webkit-details-marker{ display:none; }
+  summary::after{
+    content:"+";
+    font-size:18px;
+    color:var(--ink-soft);
+    font-weight:400;
+  }
+  details[open] summary::after{ content:"–"; }
+  .details-body{
+    padding:0 18px 18px;
+    font-size:13.3px;
+    line-height:1.65;
+    color:var(--ink);
+  }
+  .details-body p{ margin:0 0 10px; }
+  .details-body b{ color:var(--leaf-deep); }
+  .chip-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;}
+  .hint{
+    font-size:11px;
+    font-weight:500;
+    color:var(--ink-soft);
+    text-transform:none;
+    letter-spacing:0;
+  }
+  .hanzi-chip{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:1px;
+    background:var(--leaf-pale);
+    color:var(--leaf-deep);
+    border:1.5px solid transparent;
+    padding:8px 12px 7px;
+    border-radius:10px;
+    font-family:'Inter',sans-serif;
+    cursor:pointer;
+    min-width:56px;
+    transition:transform .1s ease, background .15s ease, border-color .15s ease;
+  }
+  .hanzi-chip:hover{ transform:translateY(-2px); border-color:var(--leaf-mid); }
+  .hanzi-chip:active{ transform:translateY(0); }
+  .hanzi-chip.speaking{ background:var(--sun); border-color:var(--bloom); }
+  .hanzi-chip .hz{ font-size:20px; font-weight:600; line-height:1.2; }
+  .hanzi-chip .py{ font-size:10.5px; font-weight:600; color:var(--soil); }
+  .hanzi-chip .en{ font-size:9.5px; color:var(--ink-soft); }
+  .no-speech-note{
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:8px;
+    display:none;
+  }
+
+  /* SCHEDULE TABLE */
+  .schedule-wrap{ overflow-x:auto; }
+  table.schedule{
+    width:100%;
+    border-collapse:collapse;
+    font-size:12px;
+    min-width:640px;
+  }
+  table.schedule th, table.schedule td{
+    border:1px solid var(--line);
+    padding:7px 8px;
+    text-align:center;
+    vertical-align:middle;
+    line-height:1.35;
+  }
+  table.schedule thead th{
+    background:var(--soil);
+    color:#fff;
+    font-weight:700;
+    font-size:11.5px;
+    letter-spacing:.2px;
+  }
+  table.schedule td.time{
+    background:var(--soil);
+    color:#fff;
+    font-weight:700;
+    white-space:nowrap;
+    font-size:11px;
+  }
+  table.schedule td.plain{ background:var(--paper-raised); color:var(--ink); }
+  table.schedule td.music{ background:var(--leaf-deep); color:#fff; font-weight:600; }
+  table.schedule td.chinese{ background:var(--soil); color:#fff; font-weight:600; }
+  table.schedule td.reading{ background:#8C2F39; color:#fff; font-weight:600; }
+  table.schedule td.neuromooves{ background:#8C2F39; color:#fff; font-weight:600; }
+  table.schedule td.creativity{ background:#2B4C7E; color:#fff; font-weight:600; }
+  table.schedule td.gourmet{ background:var(--sun); color:var(--ink); font-weight:600; }
+  table.schedule td.discovery{ background:var(--leaf-pale); color:var(--leaf-deep); font-weight:600; }
+  .schedule-note{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin-top:10px;
+    line-height:1.6;
+  }
+
+  footer{
+    margin-top:30px;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    text-align:center;
+    opacity:.8;
+  }
+
+  /* AUTH GATE */
+  #authGate{
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:40px 20px;
+  }
+  #authGate .gate-card{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:36px 32px;
+    max-width:380px;
+  }
+  #authGate h2{
+    color:var(--leaf-deep);
+    font-size:22px;
+    margin:0 0 6px;
+  }
+  #authGate p{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    line-height:1.6;
+    margin:0 0 22px;
+  }
+  #googleSignInBtn{
+    display:flex;
+    justify-content:center;
+  }
+  #authError{
+    display:none;
+    margin-top:16px;
+    font-size:12.5px;
+    color:var(--bloom);
+    background:#FBEAE6;
+    border-radius:8px;
+    padding:10px 12px;
+    line-height:1.5;
+  }
+  .auth-status{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .auth-status button{
+    font-family:'Inter',sans-serif;
+    font-size:11.5px;
+    font-weight:600;
+    color:var(--ink-soft);
+    background:none;
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:5px 12px;
+    cursor:pointer;
+  }
+  .auth-status button:hover{ border-color:var(--bloom); color:var(--bloom); }
+</style>
+</head>
+<body>
+
+<noscript>
+  <div style="max-width:420px;margin:60px auto;padding:28px;background:#FBEAE6;border:1px solid #E4572E;border-radius:16px;font-family:sans-serif;text-align:center;color:#22281F;">
+    <p style="font-size:16px;font-weight:600;margin:0 0 8px;">This page needs JavaScript to load</p>
+    <p style="font-size:13.5px;line-height:1.6;margin:0;">You're likely viewing this in a quick-preview pane (e.g. tapping a file in Messages). Please tap the share icon and choose <b>"Open in Safari"</b> (or "Open in Chrome") to see the full dashboard.</p>
+  </div>
+</noscript>
+
+<div id="authGate">
+  <div class="gate-card">
+    <h2>🌱 Nursery Two · Term 3</h2>
+    <p>Sign in with your Google account to view the class curriculum, menu &amp; schedule.</p>
+    <div id="googleSignInBtn"></div>
+    <div id="authError"></div>
+  </div>
+</div>
+
+<div class="wrap" id="mainContent" style="display:none;">
+
+  <header>
+    <div>
+      <p class="eyebrow">Nursery Two &middot; Term 3</p>
+      <h1>Growing <span>Things</span> 🌱</h1>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <div class="today-pill" id="todayPill">Today · Tue 21 Jul</div>
+      <div class="auth-status" id="authStatus"></div>
+    </div>
+  </header>
+
+  <div class="growth-track">
+    <div class="growth-track-inner" id="growthTrack"></div>
+  </div>
+
+  <div class="grid">
+    <div class="card" id="learningCard">
+      <h2>Learning this week <span class="tag" id="learningWeekTag">Week 1</span></h2>
+      <div id="learningBody"></div>
+    </div>
+
+    <div class="card" id="menuCard">
+      <h2>What she's eating <span class="tag" id="menuWeekTag">Week 1</span></h2>
+      <div class="day-tabs" id="dayTabs"></div>
+      <div id="menuBody"></div>
+    </div>
+  </div>
+
+  <div class="term-wide">
+    <p class="term-wide-title">Runs all term long</p>
+
+    <details open>
+      <summary>Full-Day Class Schedule (Mon–Fri)</summary>
+      <div class="details-body">
+        <div class="schedule-wrap">
+          <table class="schedule">
+            <thead>
+              <tr><th>Time</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="time">7:00</td><td class="plain" colspan="5">Arrival / Health Screening</td></tr>
+              <tr><td class="time">7:30</td><td class="plain" colspan="5">Free Expression / Small Group Activities / Reading</td></tr>
+              <tr><td class="time">8:30</td><td class="plain" colspan="5">Breakfast</td></tr>
+              <tr><td class="time">9:00</td><td class="plain" colspan="5">Mind Gym / Outdoor Gym</td></tr>
+              <tr>
+                <td class="time">9:30</td>
+                <td class="chinese">The Love for Chinese Language</td>
+                <td class="music" colspan="3">MindChamps Music</td>
+                <td class="discovery">Connecting-As-One &amp; Champ's Discovery</td>
+              </tr>
+              <tr><td class="time">10:00</td><td class="plain" colspan="5">Morning Snacks</td></tr>
+              <tr><td class="time">10:20</td><td class="discovery" colspan="5">Champ's Discovery</td></tr>
+              <tr><td class="time">10:50</td><td class="chinese" colspan="5">The Love for Chinese Language</td></tr>
+              <tr><td class="time">11:20</td><td class="plain" colspan="5">Bath Time / Routine Care</td></tr>
+              <tr><td class="time">11:50</td><td class="plain" colspan="5">Brain Food (Lunch)</td></tr>
+              <tr><td class="time">12:20</td><td class="plain" colspan="5">Rejuvenating the Mind (Nap)</td></tr>
+              <tr>
+                <td class="time">2:30</td>
+                <td class="plain" colspan="4">Healthy &amp; Yummy Snacks</td>
+                <td class="gourmet">Gourmet Moments (2:30–3:30)</td>
+              </tr>
+              <tr>
+                <td class="time">3:00</td>
+                <td class="reading" rowspan="4">MindChamps Reading &amp; Writing (3:00–5:00)</td>
+                <td class="discovery" colspan="3">Champ's Discovery (3:00–4:00)</td>
+                <td class="gourmet">Gourmet Moments (cont.)</td>
+              </tr>
+              <tr>
+                <td class="time">3:30</td>
+                <td class="discovery" colspan="3">Champ's Discovery (cont.)</td>
+                <td class="plain">Healthy &amp; Yummy Snacks (3:30–4:00)</td>
+              </tr>
+              <tr>
+                <td class="time">4:00</td>
+                <td class="neuromooves">NeuroMooves (4:00–4:30)</td>
+                <td class="creativity">Creativity &amp; Theatrical Strategies (4:00–4:30)</td>
+                <td class="discovery" colspan="2">Champ's Discovery (4:00–4:30)</td>
+              </tr>
+              <tr>
+                <td class="time">4:30</td>
+                <td class="chinese" colspan="4">The Love for Chinese Language</td>
+              </tr>
+              <tr><td class="time">5:00</td><td class="plain" colspan="5">Mind Gym / Outdoor Gym</td></tr>
+              <tr><td class="time">5:30</td><td class="plain" colspan="5">Free Expression / Small Group Activities / Reading</td></tr>
+              <tr><td class="time">7:00</td><td class="plain" colspan="5">See You Again! 👋</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="schedule-note">On Mondays, MindChamps Reading &amp; Writing runs 3:00–5:00, replacing the afternoon Champ's Discovery / NeuroMooves / Creativity slots that happen on the other days. Photographed from the classroom notice board — worth double-checking the exact 4:00–4:30 Thursday/Friday split with the teacher, as it was partly obscured by glare.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>NeuroMooves (movement &amp; body awareness)</summary>
+      <div class="details-body">
+        <p><b>Warm-up:</b> Spatial &amp; body awareness exercises.</p>
+        <p><b>Movements:</b> "Side Step Left, Side Step Right", "Turn Head Left and Right", "4 Swings Monkey Hanging in a Tree" (slow &amp; fast music) &middot; "Marching Knees and Arms High", "Catching Stars", "Clap 4 times" (follow the leader) &middot; "Vegetable Messages", "Jump and Count" &middot; "Spontaneous Clap Slap Stomp".</p>
+        <p><b>Obstacle course (basic gymnastics):</b> Dog with a Broken Leg, Bunny Hop, Crocodile Crawl, Frog Jump, Follow the GPS, Jumping for Height, Trampoline, Jump over a Marker, Leap and Land like a Dinosaur, Double-sided Vault, Log Roll, Egg Roll, Cylindrical Log, Forward Roll.</p>
+        <p><b>Relaxation moves:</b> Apple, Carrot, Basket, Broccoli, Banana, Orange.</p>
+        <p><b>Creative visualisation:</b> Growing Yummy Food; Trying a New Fruit!</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Creativity &amp; Theatrical Strategies</summary>
+      <div class="details-body">
+        <p><b>Impulse exercises:</b> The Blowing &amp; Growing Seeds Game; The Insects in the Garden; Growing as a Circle of Sunflowers; Growing into Sunflowers.</p>
+        <p><b>Physical becoming exercises:</b> The Tiny Seed's Journey; Growing Plants; The Bees &amp; the Different Coloured Pollen; Blow, Plant, Grow, Weed; Becoming a Sunflower House; The Pollinating Race; The Blowing &amp; Growing Seeds Game; Blowing &amp; Growing as a Pod of Beans.</p>
+        <p><b>Divergent thinking exercises:</b> Moving like People, Growing like Plants; Plants with Different Qualities; Making Houses from Plants; Animal Pollen Carrying Race; Growing into Different Plants.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Chinese Language (华文)</summary>
+      <div class="details-body">
+        <p><b>儿歌 (Rhymes):</b> 五指开花、牵牛花、小树叶飞呀飞、大树妈妈、小豆芽芽、含羞草、轻轻跳 — teacher sequences these based on the children's interests.</p>
+        <p><b>歌曲 / 故事:</b> Chosen by the teacher to match the theme and the children's interests.</p>
+        <p><b>习字 (Characters to recognise):</b> <span class="hint">tap a character to hear it 🔊</span></p>
+        <div class="chip-row" id="hanziRow"></div>
+        <p style="margin-top:16px;"><b>量词 (Measure words):</b> <span class="hint">tap to hear</span></p>
+        <div class="chip-row" id="measureRow"></div>
+        <p class="no-speech-note" id="noSpeechNote">Your browser doesn't support built-in text-to-speech, so playback won't work here — pinyin and meanings are still shown above.</p>
+        <p style="margin-top:12px;"><b>看图讲述 (Picture storytelling):</b> 《树叶船》&middot; 《小兔种萝卜》</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Numeracy, enquiry learning &amp; gourmet moments</summary>
+      <div class="details-body">
+        <p><b>Numeracy strategies:</b> Five interwoven strands are covered across the year — Patterns and Function, Numbers, Shapes and Space, Measurement, and Data Handling. Each week's integrated activities may touch more than one strand.</p>
+        <p><b>Enquiry teaching &amp; learning:</b> Integrated across numeracy, language, creative art &amp; craft, gourmet moments, music &amp; movement — tailored to what the children already know and what they're curious about. Teachers share the specifics in the Curriculum Updates.</p>
+        <p><b>Gourmet moments:</b> Multisensory cooking/tasting activities planned around the "Growing Things" theme, incorporating sensory language.</p>
+      </div>
+    </details>
+  </div>
+
+  <footer>
+    Built from the following MindChamps documents:<br>
+    <span style="display:inline-block;margin-top:8px;text-align:left;line-height:1.7;">
+      • <b>Core Curriculum Overview</b> — phonics, numeracy &amp; enquiry learning (weekly grid)<br>
+      • <b>Enrichment Curriculum Overview</b> — NeuroMooves &amp; Creativity/Theatrical Strategies<br>
+      • <b>MindChamps Reading (MRW) Overview</b> — lesson-by-lesson themes, activities &amp; learning points (Lesson N runs in Week N)<br>
+      • <b>MindChamps Music (MCM) Overview</b> — LQCPR framework &amp; the term's song list<br>
+      • <b>华文学习进度计划表</b> (Chinese Language Plan) — rhymes, characters, measure words, storytelling<br>
+      • <b>July 2026 Meal Menu</b> — daily breakfast, snacks &amp; lunch
+    </span><br><br>
+    Menus are sent monthly — the August menu will slot into Weeks 6–10 once the school shares it.
+  </footer>
+
+</div>
+
+<script>
+// ---------- DATA ----------
+const phonics = {
+  1:{letter:"le", theme:"Letter awareness", activity:'"What\'s the name Mr Wolf?"', point:"The one-to-one relationship between numbers and letters in names; the messages that can be found in stories."},
+  2:{letter:"ss", theme:"Syllables in words", activity:"Clapping out the parts of our names", point:"The conventions of print (starting top-left, working left to right)."},
+  3:{letter:"j", theme:"Visual features of letters", activity:"Musical freeze", point:"Words that identify elements and differences in letters — sticks, curves, tunnels and circles."},
+  4:{letter:"v", theme:"Letter awareness", activity:'"What\'s the name Mr Wolf?"', point:"Reinforced letter-feature recognition; learning lessons from the mistakes others make."},
+  5:{letter:"w", theme:"Phonemic awareness", activity:'"I spy with my little eye"', point:"Using expressive language to describe emotions, focusing on the first letter of familiar words."},
+  6:{letter:"x", theme:"Phonemic awareness", activity:'Name Bingo, "I spy with my little eye"', point:"Same letters in the same order make up one's name; directionality of print."},
+  7:{letter:"y", theme:"Letter recognition", activity:'"What is the first sound in..." name game', point:"Using visual cues as a strategy to assist with reading; recognition of individual sounds in words."},
+  8:{letter:"z", theme:"Print meaning", activity:'"Where the Wild Things Are" book', point:"Print carries meaning and messages; practising how to express ideas during discussion."},
+  9:{letter:"zz", theme:"Print meaning", activity:"Name search & letter treasure hunt", point:"Practising receptive oral skills by listening to specific sounds; knowing that print has meaning."},
+  10:{letter:"qu", theme:"Letter recognition", activity:"Listening game & alphabet sound", point:"Linking personal connection to books and their messages; receptive oral skills practice."}
+};
+
+const songs = {
+  1:["Let Us Chase the Squirrel (C)","Mahler's Are You Sleeping (D Minor)","Shake Those Apples Down (C, G)"],
+  2:["Jumping Up (C, D)","Bingo (G)","Ladybug (C)"],
+  3:["Aunt Rhody (C)","Mayday Carol (C)","French Melody 83 (C)"],
+  4:["C Jam Blues (C)","Viva La Musica (C)","French Melody 15 (C)"],
+  5:["Hiding a Conducting Scarf (D)","Round and Round (D Minor)","French Melody 83 (C)","Mali Beat"],
+  6:["Firebird Theme (C)","English Minuet (G)","Bach Musette (C, D)"],
+  7:["Killifish (D, simple)","Mardi Gras Mambo (G)","Merrily Greet the Day (C)"],
+  8:["Oo a Lay Lay (C)","Two Bird Songs (D Minor Modal)","So What (D Minor Modal)"],
+  9:["Clap It (G)","Swan Lake Theme (A Minor)"],
+  10:["Review all — choose favourites for a final performance on voice, recorder, percussion & keyboard"]
+};
+
+// Display range + short date shown on each growth-track stem, per curriculum week.
+// Term 3 Week 1 actually starts Mon 29 Jun (the school only sent a partial 3-day
+// menu for that first week), which pushes every later week forward by one.
+const weekMeta = {
+  1:{ short:"Jun 29", range:"Jun 29 – Jul 3" },
+  2:{ short:"Jul 6",  range:"Jul 6 – 10" },
+  3:{ short:"Jul 13", range:"Jul 13 – 17" },
+  4:{ short:"Jul 20", range:"Jul 20 – 24" },
+  5:{ short:"Jul 27", range:"Jul 27 – 31" },
+  6:{ short:"Aug 3",  range:"Aug 3 – 7" },
+  7:{ short:"Aug 10", range:"Aug 10 – 14" },
+  8:{ short:"Aug 17", range:"Aug 17 – 21" },
+  9:{ short:"Aug 24", range:"Aug 24 – 28" },
+  10:{ short:"Aug 31", range:"Aug 31 – Sep 4" }
+};
+
+// Menus keyed by curriculum week -> array of days, each with an explicit
+// day/date label plus {b, ms, l, as} meals (each {en, zh}). Week 1 is a
+// partial week (Wed–Fri only), matching what the school actually sent.
+const menus = {
+  1:[
+    {day:"Wed", date:"Jul 1", b:{en:"Oats w/ Egg, Milk",zh:"牛奶燕麦加蛋"},ms:{en:"Yoghurt w/ Fruits",zh:"鲜果加酸奶"},l:{en:"Mixed Grain Rice, Braised Fish, Broccoli with Mixed Mushrooms, Clear Corn Soup",zh:"混合糙米饭，红烧鱼，西兰花和杂菇，玉蜀黍清汤"},as:{en:"Wholemeal Pizza Bread, Milk",zh:"披萨面包，牛奶"}},
+    {day:"Thu", date:"Jul 2", b:{en:"Wholemeal Sandwiches w/ Mushroom & Cheese, Milk",zh:"蘑菇和芝士全麦三明治，牛奶"},ms:{en:"Fruits",zh:"鲜果"},l:{en:"Mixed Grain Rice, Baby Ginger Chicken, Luo Han Zai, Clear Vegetable Soup",zh:"混合糙米饭，姜牙鸡，罗汉斋，菜清汤"},as:{en:"Wholemeal Leng Yong Pau, Milk",zh:"全麦莲蓉包，牛奶"}},
+    {day:"Fri", date:"Jul 3", b:{en:"Scrambled Egg w/ Wolfberries, Milk",zh:"枸杞炒蛋，牛奶"},ms:{en:"Yoghurt w/ Fruits",zh:"鲜果加酸奶"},l:{en:"Stir Fry Wholemeal Noodle with Dark Soya Sauce, Cereal Fish, Braised Cabbage with Carrots, Clear Cabbage Soup",zh:"黑酱油炒全麦面，麦片鱼，包菜萝卜，包菜清汤"},as:{en:"Wholemeal Blueberry Sandwich, Milk",zh:"蓝莓全麦面包，牛奶"}}
+  ],
+  2:[
+    {day:"Mon", date:"Jul 6", b:{en:"Crispy Corn Flakes w/ Raisin, Milk",zh:"香脆玉米片加葡萄干，牛奶"},ms:{en:"Yoghurt w/ Fruits",zh:"鲜果加酸奶"},l:{en:"Mixed Grain Rice, Baked Honey Chicken, Braised Cabbage, Mushroom Cream Soup",zh:"混合糙米饭，烤蜜汁鸡，焖包菜，蘑菇浓汤"},as:{en:"Fish Paste w/ Cabbage & Carrot, Mixed Brown Rice Porridge, Milk",zh:"鱼酱，高丽菜，红萝卜混合糙米粥，牛奶"}},
+    {day:"Tue", date:"Jul 7", b:{en:"Wholemeal Sandwiches w/ Strawberry Jam & Butter, Milk",zh:"草莓牛油全麦三明治，牛奶"},ms:{en:"Fruits",zh:"鲜果"},l:{en:"Steamed Pumpkin Mixed Grain Rice, Steamed Sliced Fish w/ Baby Ginger & Spring Onion, Vegetable Soup w/ Cauliflower, Carrots & Potatoes",zh:"蒸南瓜混合糙米饭，姜葱蒸鱼片，焖白菜花、萝卜和长铃薯汤"},as:{en:"Stir-Fried Wholemeal Bee Tai Mak w/ Minced Chicken & Spinach, Milk",zh:"清炒全麦老鼠粉加鸡肉碎和菠菜，牛奶"}},
+    {day:"Wed", date:"Jul 8", b:{en:"Oatmeal w/ Banana, Milk",zh:"麦片加香蕉，牛奶"},ms:{en:"Yoghurt w/ Fruits",zh:"鲜果加酸奶"},l:{en:"Mixed Grain Rice, Fish in Vegetarian Oyster Sauce, Cai Xin w/ Mixed Mushrooms, Clear Corn Soup",zh:"混合糙米饭，斋蚝油焖鱼，菜心和杂菇，玉蜀黍清汤"},as:{en:"Baked Wholemeal Pudding, Milk",zh:"烤全麦布丁，牛奶"}},
+    {day:"Thu", date:"Jul 9", b:{en:"Wholemeal Sandwiches w/ Butter Garlic, Milk",zh:"黄油蒜蓉全麦三明治，牛奶"},ms:{en:"Fruits",zh:"鲜果"},l:{en:"Claypot Mixed Grain Rice w/ Mushroom, Claypot Chicken, Spinach w/ Minced Garlic, Red Carrot Soup",zh:"沙煲冬菇丝混合糙米饭，沙煲鸡，蒜蓉苋菜苗，红萝卜汤"},as:{en:"Wholemeal Chicken Pau, Milk",zh:"全麦鸡肉包，牛奶"}},
+    {day:"Fri", date:"Jul 10", b:{en:"Omelette w/ Spinach, Milk",zh:"煎蛋加菠菜，牛奶"},ms:{en:"Yoghurt w/ Fruits",zh:"鲜果加酸奶"},l:{en:"Macaroni, Fish in Bolognaise Sauce, Sautéed Diced Carrot & French Beans, Clear Tomato Soup",zh:"通心粉，鱼肉酱，萝卜炒四季豆，番茄清汤"},as:{en:"Wholemeal Sandwiches w/ Tuna, Milk",zh:"全麦吞拿鱼三明治，牛奶"}}
+  ],
+  3:[
+    {day:"Mon", date:"Jul 13", b:{en:"Crispy Coco Crunch, Milk",zh:"香脆可可片，牛奶"},ms:{en:"Yoghurt w/ Fruits",zh:"鲜果加酸奶"},l:{en:"Mixed Grain Rice, Steamed Fish in Light Sauce, Luo Han Zai, Wintermelon Soup w/ Red Dates",zh:"混合糙米饭，生抽蒸鱼，罗汉斋，冬瓜汤与红枣"},as:{en:"Minced Chicken w/ Omelette, Mixed Brown Rice Porridge, Milk",zh:"鸡肉碎，煎蛋混合糙米粥，牛奶"}},
+    {day:"Tue", date:"Jul 14", b:{en:"Wholemeal Sandwiches w/ Mixed Fruit Jam, Milk",zh:"混合果酱全麦三明治，牛奶"},ms:{en:"Fruits",zh:"鲜果"},l:{en:"Steamed Mixed Grain Vegetable Rice (Long Cabbage & Carrot), Stir Fry Sweet Sauce Chicken, Shark's Fin Melon Soup",zh:"蒸混合糙米蔬菜饭(萝卜,长包菜)，炒甜酱油鸡，鱼翅瓜汤"},as:{en:"Fish Ball Wholemeal Mee Sua w/ Egg & Black Fungus, Milk",zh:"鱼圆全麦面线汤加鸡蛋和黑木耳，牛奶"}},
+    {day:"Wed", date:"Jul 15", b:{en:"Oats w/ Strawberry, Milk",zh:"麦片加草莓，牛奶"},ms:{en:"Yoghurt w/ Fruits",zh:"鲜果加酸奶"},l:{en:"Mixed Grain Rice, Braised Chicken, Easy Sautéed Spinach, White Carrot Soup",zh:"混合糙米饭，卤鸡，炒苋菜苗，白萝卜汤"},as:{en:"Chicken Japanese Curry w/ Wholemeal Bread, Milk",zh:"日式咖喱鸡配全麦面包，牛奶"}},
+    {day:"Thu", date:"Jul 16", b:{en:"Wholemeal Sandwiches w/ Cinnamon & Sugar, Milk",zh:"肉桂糖全麦三明治，牛奶"},ms:{en:"Fruits",zh:"鲜果"},l:{en:"Healthier Choice Chicken Rice, Steamed Sliced Chicken w/ Sesame Oil, Xiao Bai Chye w/ Superior Light Sauce, Cabbage Soup",zh:"鸡饭(健康)，麻油蒸鸡肉片，生抽小白菜，包菜汤"},as:{en:"Wholemeal Tao Sar Pau, Milk",zh:"全麦豆沙包，牛奶"}},
+    {day:"Fri", date:"Jul 17", b:{en:"Scrambled Egg w/ Cheese & Mushroom, Milk",zh:"蘑菇芝士炒蛋，牛奶"},ms:{en:"Yoghurt w/ Fruits",zh:"鲜果加酸奶"},l:{en:"Stir Fry Wholemeal Thick Bee Hoon w/ Shredded Carrots, Braised Fish, Cai Xin and Carrots, Clear Vegetable Soup",zh:"炒全麦粗米粉与萝卜丝，卤鱼片，菜心、萝卜，菜清汤"},as:{en:"Wholemeal Sandwiches w/ Chicken, Milk",zh:"全麦鸡肉三明治，牛奶"}}
+  ],
+  4:[
+    {day:"Mon", date:"Jul 20", b:{en:"Putu Mayam, Milk",zh:"印度米线饼，牛奶"},ms:{en:"Yoghurt w/ Fruits",zh:"鲜果加酸奶"},l:{en:"Mixed Grain Rice, Chicken Stew Potage, Broccoli with Corn, Minestrone Soup",zh:"混合糙米饭，西式焖鸡，西兰花和玉米粒，意大利浓汤"},as:{en:"Assorted Traditional Kueh, Milk",zh:"传统杂锦糕点，牛奶"}},
+    {day:"Tue", date:"Jul 21", b:{en:"Wholemeal Sandwiches w/ Kaya & Margarine, Milk",zh:"咖椰牛油全麦三明治，牛奶"},ms:{en:"Fruits",zh:"鲜果"},l:{en:"Egg Fried Mixed Grain Rice w/ Broccoli and Carrots, Oriental Fish Stew w/ Carrots and White Onions, Clear Cabbage Soup",zh:"西兰花、萝卜、蛋炒混合糙米饭，中式焞鱼，萝卜和白大葱，包菜清汤"},as:{en:"Low-Fat Ramen w/ Chicken & Cabbage Soup, Milk",zh:"健康拉面汤加鸡肉和包菜，牛奶"}},
+    {day:"Wed", date:"Jul 22", b:{en:"Oatmeal w/ Cheesy Honey, Milk",zh:"燕麦加芝士蜂蜜，牛奶"},ms:{en:"Yoghurt w/ Fruits",zh:"鲜果加酸奶"},l:{en:"Mixed Grain Rice, Braised Soy Sauce Chicken, Easy Sautéed Spinach, Old Cucumber Soup w/ Goji Berries",zh:"混合糙米饭，焖酱油鸡，炒苋菜苗，老黄瓜汤与枸杞子"},as:{en:"Wholemeal Sandwiches w/ Fish Fillet, Milk",zh:"全麦鱼柳三明治，牛奶"}},
+    {day:"Thu", date:"Jul 23", b:{en:"Wholemeal Sandwiches w/ Corn & Healthier Choice Mayonnaise, Milk",zh:"美乃滋玉米全麦三明治，牛奶"},ms:{en:"Fruits",zh:"鲜果"},l:{en:"Mixed Grain Rice, Diced Chicken, Fish & Mushrooms in Hokkien Gravy, Diced Caixin w/ Carrots in Hokkien Gravy, Green Radish Soup",zh:"混合糙米饭，福健式汁,鸡丁,鱼丁,蘑菇丁，萝卜丁,菜心丁，青萝卜汤"},as:{en:"Wholemeal BBQ Chicken Pau, Milk",zh:"全麦烧烤鸡肉包，牛奶"}},
+    {day:"Fri", date:"Jul 24", b:{en:"Fluffy Omelette, Milk",zh:"舒芙蕾歐姆蛋，牛奶"},ms:{en:"Yoghurt w/ Fruits",zh:"鲜果加酸奶"},l:{en:"Wholemeal Noodle, Diced Chicken, Shredded Mushrooms & Carrots in Dark Sauce Gravy, Sautéed Garlic w/ Cauliflower, Clear Vegetable Soup",zh:"全麦面，鸡丁,蘑菇丝和萝卜,黑酱汁，白菜花炒蒜蓉，菜清汤"},as:{en:"Wholemeal Prata, Milk",zh:"全麦印度煎饼，牛奶"}}
+  ],
+  5:[
+    {day:"Mon", date:"Jul 27", b:{en:"Milo Cereal w/ Raisins, Milk",zh:"美祿早餐脆片加葡萄干，牛奶"},ms:{en:"Yoghurt w/ Fruits",zh:"鲜果加酸奶"},l:{en:"Mixed Grain Rice, Baked Fish w/ Mushroom Sauce, Broccoli w/ Garlic Sauce, Clear Tomato Soup",zh:"混合糙米饭，烤鱼与蘑菇酱，蒜蓉酱西兰花，番茄清汤"},as:{en:"Chicken w/ Pumpkin & Tofu, Mixed Brown Rice Porridge, Milk",zh:"鸡肉、金瓜、豆腐混合糙米粥，牛奶"}},
+    {day:"Tue", date:"Jul 28", b:{en:"Wholemeal Sandwiches w/ Honey, Milk",zh:"蜂蜜全麦三明治，牛奶"},ms:{en:"Fruits",zh:"鲜果"},l:{en:"Vegetables Fried Mixed Grain Rice (Eggs, Carrots & Cabbage), Tomato Fish Stew, Chicken Broth",zh:"萝卜,蛋,包菜,炒混合糙米饭，番茄炖鱼，西式鸡清汤"},as:{en:"Wholemeal Macaroni Soup w/ Chicken & Spinach, Milk",zh:"鸡肉，菠菜全麦通心粉汤，牛奶"}},
+    {day:"Wed", date:"Jul 29", b:{en:"Oatmeal w/ Milo Cereal, Milk",zh:"燕麦加美祿早餐脆片，牛奶"},ms:{en:"Yoghurt w/ Fruits",zh:"鲜果加酸奶"},l:{en:"Mixed Grain Rice, Chicken in Vegetarian Oyster Sauce, Cauliflower with Carrots, Clear Vegetable Soup",zh:"混合糙米饭，斋蚝油焖鸡，白菜花炒萝卜，菜清汤"},as:{en:"Wholemeal Steamed Dates Cake, Milk",zh:"全麦蒸枣糕，牛奶"}},
+    {day:"Thu", date:"Jul 30", b:{en:"Wholemeal Sandwiches w/ Omelette, Milk",zh:"全麦三明治配煎蛋，牛奶"},ms:{en:"Fruits",zh:"鲜果"},l:{en:"Mixed Grain Rice, Chinese Style Braised Chicken with Carrots and Potatoes, Xiao Bai Cai with Assorted Mushroom, Wintermelon Soup w/ Red Dates",zh:"混合糙米饭，中式焖鸡,马铃薯和萝卜，小白菜和杂菇，冬瓜汤与红枣"},as:{en:"Wholemeal Mantou, Milk",zh:"全麦馒头，牛奶"}},
+    {day:"Fri", date:"Jul 31", b:{en:"Scrambled Egg w/ Cheese, Milk",zh:"芝士炒蛋，牛奶"},ms:{en:"Yoghurt w/ Fruits",zh:"鲜果加酸奶"},l:{en:"Mixed Wholemeal Spaghetti, Baked Fish with Tomato Sauce, Spinach with Minced Garlic, Clear Corn Soup",zh:"全麦意大利面，番茄酱烤鱼，蒜蓉苋菜苗，玉蜀黍清汤"},as:{en:"Wholemeal Sandwiches w/ Mushroom Spread, Milk",zh:"全麦蘑菇酱三明治，牛奶"}}
+  ]
+};
+
+// ---------- TODAY ----------
+// Fixed reference: today is Tue, 21 Jul 2026 -> curriculum Week 4, index 1 in that week's day array
+const TODAY = { week: 4, dayIdx: 1, label: "Tue 21 Jul" };
+
+// ---------- CHINESE CHARACTERS ----------
+const hanziList = [
+  {hz:"人", py:"rén",  en:"person"},
+  {hz:"头", py:"tóu",  en:"head"},
+  {hz:"口", py:"kǒu",  en:"mouth"},
+  {hz:"手", py:"shǒu", en:"hand"},
+  {hz:"耳", py:"ěr",   en:"ear"},
+  {hz:"日", py:"rì",   en:"sun / day"},
+  {hz:"月", py:"yuè",  en:"moon / month"},
+  {hz:"木", py:"mù",   en:"wood / tree"},
+  {hz:"土", py:"tǔ",   en:"earth / soil"},
+  {hz:"田", py:"tián", en:"field"}
+];
+const measureList = [
+  {hz:"粒", py:"lì",  en:"grain / tiny round things"},
+  {hz:"棵", py:"kē",  en:"trees / plants"},
+  {hz:"朵", py:"duǒ", en:"flowers / clouds"},
+  {hz:"片", py:"piàn",en:"slices / flat pieces"}
+];
+
+function speakZh(char, btn){
+  if(!('speechSynthesis' in window)){
+    document.getElementById('noSpeechNote').style.display = 'block';
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(char);
+  u.lang = 'zh-CN';
+  u.rate = 0.75;
+  if(btn){
+    btn.classList.add('speaking');
+    u.onend = () => btn.classList.remove('speaking');
+    u.onerror = () => btn.classList.remove('speaking');
+  }
+  window.speechSynthesis.speak(u);
+}
+
+function renderChips(containerId, list){
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  list.forEach(item => {
+    const btn = document.createElement('button');
+    btn.className = 'hanzi-chip';
+    btn.innerHTML = `<span class="hz">${item.hz}</span><span class="py">${item.py}</span><span class="en">${item.en}</span>`;
+    btn.addEventListener('click', () => speakZh(item.hz, btn));
+    el.appendChild(btn);
+  });
+}
+renderChips('hanziRow', hanziList);
+renderChips('measureRow', measureList);
+
+let state = { week: TODAY.week, day: TODAY.dayIdx };
+
+// ---------- RENDER: growth track ----------
+const track = document.getElementById('growthTrack');
+for(let w=1; w<=10; w++){
+  const btn = document.createElement('button');
+  btn.className = 'week-stem';
+  btn.dataset.week = w;
+  btn.dataset.hasMenu = menus[w] ? "1" : "0";
+  if(w === TODAY.week) btn.classList.add('current');
+  btn.innerHTML = `
+    ${w===TODAY.week ? '<span class="today-flag">☀️</span>' : ''}
+    <span class="leaf"></span>
+    <span class="week-label">Wk ${w}</span>
+    <span class="week-dates">${weekMeta[w].short}</span>
+  `;
+  btn.addEventListener('click', () => {
+    state.week = w;
+    state.day = (w === TODAY.week) ? TODAY.dayIdx : 0;
+    render();
+  });
+  track.appendChild(btn);
+}
+
+document.getElementById('todayPill').textContent = "Today · " + TODAY.label;
+
+// ---------- RENDER ----------
+function render(){
+  // active states on track
+  document.querySelectorAll('.week-stem').forEach(el=>{
+    el.classList.toggle('active', Number(el.dataset.week) === state.week);
+  });
+
+  const w = state.week;
+  const p = phonics[w];
+  const s = songs[w];
+
+  // learning panel
+  document.getElementById('learningWeekTag').textContent = `Week ${w} · ${weekMeta[w].range}`;
+  document.getElementById('learningBody').innerHTML = `
+    <div class="letter-hero">
+      <div class="letter-badge">${p.letter}</div>
+      <div class="letter-meta">
+        <div class="theme">${p.theme}</div>
+        <div class="sub">MindChamps Reading Lesson ${w} &middot; phonics focus letter${p.letter.length>1 && p.letter!=='qu' ? 's':''} '${p.letter}'</div>
+      </div>
+    </div>
+    <div class="field"><div class="k">In class</div><div class="v">${p.activity}</div></div>
+    <div class="field"><div class="k">What she's learning</div><div class="v">${p.point}</div></div>
+    <div class="field" style="margin-top:16px;">
+      <div class="k">🎵 Music this week (teacher picks from)</div>
+      <ul class="song-list">${s.map(x=>`<li>${x}</li>`).join('')}</ul>
+    </div>
+  `;
+
+  // menu panel
+  document.getElementById('menuWeekTag').textContent = `Week ${w}`;
+  const dayTabs = document.getElementById('dayTabs');
+  dayTabs.innerHTML = '';
+  const weekMenu = menus[w];
+
+  if(weekMenu){
+    weekMenu.forEach((dayData, i) => {
+      const tab = document.createElement('button');
+      tab.className = 'day-tab';
+      if(i === state.day) tab.classList.add('active');
+      if(w === TODAY.week && i === TODAY.dayIdx) tab.classList.add('is-today');
+      tab.textContent = `${dayData.day} ${dayData.date}`;
+      tab.addEventListener('click', () => { state.day = i; render(); });
+      dayTabs.appendChild(tab);
+    });
+
+    const day = weekMenu[state.day];
+    document.getElementById('menuBody').innerHTML = `
+      <div class="meal-row">
+        <div class="meal-tag breakfast">Breakfast</div>
+        <div class="meal-text">${day.b.en}<div class="zh">${day.b.zh}</div></div>
+      </div>
+      <div class="meal-row">
+        <div class="meal-tag snack">AM Snack</div>
+        <div class="meal-text">${day.ms.en}<div class="zh">${day.ms.zh}</div></div>
+      </div>
+      <div class="meal-row">
+        <div class="meal-tag lunch">Lunch</div>
+        <div class="meal-text">${day.l.en}<div class="zh">${day.l.zh}</div></div>
+      </div>
+      <div class="meal-row">
+        <div class="meal-tag snack">PM Snack</div>
+        <div class="meal-text">${day.as.en}<div class="zh">${day.as.zh}</div></div>
+      </div>
+    `;
+  } else {
+    document.getElementById('menuBody').innerHTML = `
+      <div class="no-menu">🍽️ The school sends the meal menu one month at a time — only July has been shared so far. This week's menu will appear here as soon as it's sent.</div>
+    `;
+  }
+}
+
+render();
+</script>
+</body>
+</html>
